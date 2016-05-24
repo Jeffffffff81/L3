@@ -203,7 +203,7 @@ parameter character_colon = 8'h3A;          //':'
 parameter character_stop = 8'h2E;           //'.'
 parameter character_semi_colon = 8'h3B;   //';'
 parameter character_minus = 8'h2D;         //'-'
-parameter character_divide = 8'h2F;         //'/'
+parameter charaspeed_up_event_triggercter_divide = 8'h2F;         //'/'
 parameter character_plus = 8'h2B;          //'+'
 parameter character_comma = 8'h2C;          // ','
 parameter character_less_than = 8'h3C;    //'<'
@@ -221,11 +221,72 @@ wire Sample_Clk_Signal;
 //=======================================================================================================================
 //
 // Insert your code for Lab2 here!
-//
-//
+// 
 
+wire startsamplenow;
+wire [15:0] debug;
+wire [15:0] debug_address;
+wire [15:0] audio_data_16bit;
+wire sample_rate_clock;
+wire [31:0] sample_rate_divisor;
+wire kybrd_forward, kybrd_pause, kybrd_reset;
+wire data_ready;  
 
+//******************KEYBOARD*********************//
+//determines if the keyboard data is ready
+ async_trap_and_reset_oneshot make_kbd_ready_signal(.async_sig(kbd_data_ready), .outclk(CLK_50M), 
+   .out_sync_sig(data_ready), .auto_reset(1'b1), .reset(1'b1));
 
+//Keyboard interface:
+musicController(
+	.clk(CLK_50M),
+	.keyboard_input(kbd_received_ascii_code),
+	.forward(kybrd_forward),
+	.pause(kybrd_pause),
+	.restart(kybrd_reset),
+	.kybrd_data_ready(data_ready)
+);
+
+//******************BUTTONS/SAMPLERATE*******************//
+frequencyDivisorGenerator(
+	.key_0(speed_down_event),
+	.key_1(speed_up_event),
+	.key_2(speed_reset_event),
+	.clk(CLK_50M),
+	.frequency_divisor(sample_rate_divisor)
+);
+
+frequencyDivider(
+	.clk_in(CLK_50M),
+	.clk_out(sample_rate_clock),
+	.divisor(sample_rate_divisor)
+);
+
+async_trap_and_reset_oneshot(
+	.async_sig(sample_rate_clock),
+	.outclk(CLK_50M),
+	.out_sync_sig(startsamplenow),
+	.auto_reset(1'b1),
+	.reset(1'b1)
+);
+
+//**************AUDIO/FLASH**************//
+MusicPlayer musicplayer(
+	.clk(CLK_50M),
+	.kybrd_forward(kybrd_forward),
+	.kybrd_pause(kybrd_pause),
+	.kybrd_reset(kybrd_reset),
+	.startsamplenow(startsamplenow),
+	.flsh_address(flash_mem_address),
+	.flsh_waitrequest(flash_mem_waitrequest),
+	.flsh_read(flash_mem_read),
+	.flsh_readdata(flash_mem_readdata),
+	.flsh_readdatavalid(flash_mem_readdatavalid),
+	.flsh_byteenable(flash_mem_byteenable),
+	.audio_data(audio_data_16bit),
+	.debug(debug),
+	.debug_address(debug_address)
+);
 
 wire            flash_mem_read;
 wire            flash_mem_waitrequest;
@@ -233,7 +294,6 @@ wire    [22:0]  flash_mem_address;
 wire    [31:0]  flash_mem_readdata;
 wire            flash_mem_readdatavalid;
 wire    [3:0]   flash_mem_byteenable;
-
 
 flash flash_inst (
     .clk_clk                 (CLK_50M),
@@ -254,8 +314,8 @@ assign Sample_Clk_Signal = Clock_1KHz;
 
 //Audio Generation Signal
 //Note that the audio needs signed data - so convert 1 bit to 8 bits signed
-wire [7:0] audio_data = {~Sample_Clk_Signal,{7{Sample_Clk_Signal}}}; //generate signed sample audio signal
-
+//wire [7:0] audio_data = {~Sample_Clk_Signal,{7{Sample_Clk_Signal}}}; //generate signed sample audio signal
+wire[7:0] audio_data = audio_data_16bit[15:8];
 
 
 //======================================================================================
@@ -350,7 +410,7 @@ wire scope_enable_source = SW[8];
 wire choose_LCD_or_SCOPE = SW[9];
 
 
-doublesync user_scope_enable_sync1(.indata(scope_enable_source),
+doublesync user_speed_reset_eventscope_enable_sync1(.indata(scope_enable_source),
                   .outdata(user_scope_enable),
                   .clk(CLK_50M),
                   .reset(1'b1)); 
@@ -399,14 +459,14 @@ LCD_Scope_Encapsulated_pacoblaze_wrapper LCD_LED_scope(
 					    .clk(CLK_50M),
                 
                         //LCD Display values
-                      .InH(8'hAA),
-                      .InG(8'hBB),
-                      .InF(8'h01),
-                       .InE(8'h23),
-                      .InD(8'h45),
-                      .InC(8'h67),
-                      .InB(8'h89),
-                     .InA(8'h00),
+                      .InH(debug[7:0]),
+                      .InG(debug[15:8]),
+                      .InF(8'hFF),
+                       .InE(audio_data_16bit[15:8]),
+                      .InD(audio_data_16bit[7:0]),
+                      .InC(8'hFF),
+                      .InB(8'hFF),
+                     .InA(debug_address[7:0]),
                           
                      //LCD display information signals
                          .InfoH({scope_info15,scope_info14}),
