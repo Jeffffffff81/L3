@@ -318,6 +318,24 @@ assign Sample_Clk_Signal = Clock_1KHz;
 wire[7:0] audio_data = audio_data_16bit[15:8];
 
 
+//******************************8PICOBLAZE//******************************//
+wire [7:0] LCD_DATA;
+
+picoblaze_template
+#(
+.clk_freq_in_hz(50000000)
+) 
+picoblaze_template_inst(
+                        .led(LED[7:0]),
+                      .lcd_d(LCD_DATA),
+                      .lcd_rs(1'b0),
+                      .lcd_rw(1'b0),
+                      .lcd_e(1'b0),
+                        .clk(CLK_50M),
+                .input_data(audio_data)
+                 );
+
+
 //======================================================================================
 // 
 // Keyboard Interface
