@@ -321,9 +321,11 @@ wire[7:0] audio_data = audio_data_16bit[15:8];
 //******************************8PICOBLAZE//******************************//
 
 picoblaze_template #(.clk_freq_in_hz(50000000)) picoblaze_template_inst(
-	.led(LED[9:2]),		
+	.led(LED[9:2]),
+	.other_leds(LED[1:0]),
 	.clk(CLK_50M),
-	.input_data(audio_data)
+	.input_data(audio_data),
+	.external_interrupt(startsamplenow)
 );
 
 

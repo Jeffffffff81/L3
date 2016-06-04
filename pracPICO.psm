@@ -13,9 +13,9 @@
                     ;
                     ;
                     ;
-                    CONSTANT LED_port, 80               ;8 simple LEDs. Is an OUTPUT port.
-			        CONSTANT DATA_IN_PORT, 00	        ;input data port. this is an INPUT port.
-
+                    CONSTANT HIGHER_LED_output_port, 80               ;8 simple LEDs. Is an OUTPUT port.
+				CONSTANT DATA_IN_PORT, 00		;input data port. this is an INPUT port.
+                    CONSTANT LOWER_LED_output_port, 40
                  
                     ;
                     ;
@@ -25,7 +25,7 @@
                     ; The 8-bit communication interface can be used on the Spartan-3A Starter Kit
                     ; as all pins are connected and dedicated.
                     ;
-                    CONSTANT LCD_output_port, 40        ;LCD character module output data
+                            ;LCD character module output data
                     CONSTANT LCD_input_port, 01         ;LCD character module input data
                     CONSTANT LCD_DB0, 01                ;   8-bit          DB4 - bit0
                     CONSTANT LCD_DB1, 02                ;   interface      DB5 - bit1
@@ -40,7 +40,8 @@
                     CONSTANT LCD_E, 01                  ;   active High Enable        E - bit0
                     CONSTANT LCD_RW, 02                 ;   Read=1 Write=0           RW - bit1
                     CONSTANT LCD_RS, 04                 ;   Instruction=0 Data=1     RS - bit2
-                   
+		    CONSTANT LCD_output_port, 00                  
+ 
                     ;**************************************************************************************
                     ; Special Register usage
                     ;**************************************************************************************
@@ -57,8 +58,14 @@
                     CONSTANT ISR_preserve_s2, 02        ;Preserve s2 contents during ISR
                     CONSTANT ISR_preserve_s3, 03        ;Preserve s3 contents during ISR
                     ;
-                    CONSTANT LED_pattern, 04            ;remember state of LEDs (8-bit counter in this case)
-                   
+                    CONSTANT AUDIO_iter, 04              ;number of times audio data has been summed  
+                    CONSTANT AUDIO_sumlower, 05          ;Sum of audio data
+                    CONSTANT AUDIO_sumupper, 06
+                    CONSTANT LED_pattern, 07
+                    CONSTANT SEAN_preserve_s0, 08
+                    CONSTANT SEAN_preserve_s1, 09
+                    CONSTANT SEAN_preserve_s2, 10
+                    CONSTANT SEAN_preserve_s3, 11
                     ;
                     ;**************************************************************************************
                     ; Useful data constants
@@ -172,7 +179,9 @@
                     ;
         cold_start: LOAD s0, 00                         ;clear 1 second counter and clear LEDs
                     STORE s0, LED_pattern
-                    OUTPUT s0, LED_port
+		    STORE s0, AUDIO_sumlower
+                    STORE s0, AUDIO_sumupper
+		    STORE s0, AUDIO_iter
                     ;
                     ENABLE INTERRUPT                    ;enable one second heart beat
                     ;
@@ -184,9 +193,16 @@
                     ;
                     ; Display welcome message for design
                     ;
-      main_program: CALL delay_1s;
+      main_program: 
+                    LOAD s0, 01
+                    OUTPUT s0, LOWER_LED_output_port
+                    CALL delay_1s
+		    LOAD s0, 00
+                    OUTPUT s0, LOWER_LED_output_port
+                    CALL delay_1s
 		    JUMP main_program;
-       		  
+	  
+		  
                     ;**************************************************************************************
                     ; Routines to display hexadecimal values on LCD display
                     ;**************************************************************************************
@@ -277,7 +293,7 @@ display_hex_32_bit: LOAD s6, 04                         ;4 bytes to display
                     LOAD s5, character_P
                     CALL LCD_write_data
                    
-			        LOAD s5, character_G
+				LOAD s5, character_G
                     CALL LCD_write_data
                     LOAD s5, character_A
                     CALL LCD_write_data
@@ -285,11 +301,11 @@ display_hex_32_bit: LOAD s6, 04                         ;4 bytes to display
                     CALL LCD_write_data
 					CALL disp_space
 			  
-			        LOAD s5, character_a
+				LOAD s5, character_a
                     CALL LCD_write_data
-			        LOAD s5, character_r
+				LOAD s5, character_r
                     CALL LCD_write_data
- 			        LOAD s5, character_e
+				LOAD s5, character_e
                     CALL LCD_write_data
                    
                     RETURN
@@ -298,10 +314,10 @@ disp_line2:         LOAD s5, character_t
                     CALL LCD_write_data
                     LOAD s5, character_h
                     CALL LCD_write_data
- 			        LOAD s5, character_e
+				LOAD s5, character_e
                     CALL LCD_write_data
                                      
-  			  ;
+			  ;
                     CALL disp_space
 			  ;
 		
@@ -555,10 +571,117 @@ disp_line2:         LOAD s5, character_t
                     ; on the 8 LEDs.
                     ;
                ISR: STORE s0, ISR_preserve_s0           ;preserve register
+                    STORE s1, ISR_preserve_s1
+                    STORE s2, ISR_preserve_s2
+
+                    FETCH s0, AUDIO_iter
+                    COMPARE s0, FF
+                    JUMP Z, reset_iter
+                    JUMP sum_audio
+
+;*****************************SUM_AUDIO********************************;
+         sum_audio:
                     INPUT s0, DATA_IN_PORT              ;read audio data
-                    OUTPUT s0, LED_port                 ;display audio data on LEDs
+                    CALL abs_val
+                    FETCH s1, AUDIO_sumlower
+                    FETCH s2, AUDIO_sumupper
+
+start_sum_loop:
+                    COMPARE s0, 00
+                    JUMP Z, done_isr
+
+                    COMPARE s1, FF
+                    JUMP Z, lower_overflow
+
+                    ADD s1, 01
+                    STORE s1, AUDIO_sumlower
+                    SUB s0, 01
+                    JUMP start_sum_loop
+
+lower_overflow:                         
+                    ADD s2, 01
+                    STORE s2, AUDIO_sumupper
+                    LOAD s1, 00
+                    STORE s1, AUDIO_sumlower
+                    SUB s0, 01
+                    JUMP start_sum_loop
+;*****************************RESET_ITER*************************************;                    
+        reset_iter: 
+                    FETCH s0, AUDIO_sumupper      ;instead of shifting right 8 bits, we just use the upper 8 bit register
+                    CALL display_audio
+                    LOAD s0, 00
+                    STORE s0, AUDIO_iter
+                    STORE s0, AUDIO_sumlower
+                    STORE s0, AUDIO_sumupper
+		    JUMP done_isr
+
+;*******************************FUNCTIONS************************************;
+
+     ;***************display audio************;
+     display_audio: 
+                    STORE s0, SEAN_preserve_s0          ;s0 = average 
+					STORE s1, SEAN_preserve_s1			;s1 = variable
+					STORE s2, SEAN_preserve_s2			;s2 = num 
+					STORE s3, SEAN_preserve_s3			;s3 = count 
+					
+
+					LOAD s2, 80			;num = 8'b1000_0000
+					LOAD s3, 00			;count = 0
+					
+		begin_loop:	LOAD s1, s0			;variable = average
+					COMPARE s2, 00
+					JUMP Z, display_leds	;if num = 8'b0000_0000 then jump to finished 
+					
+					AND s1, s2			;s1 & num
+					COMPARE s1, 00		;if s1 == 0 then repeat the loop  
+					JUMP Z, repeat_loop
+					JUMP display_leds
+					
+	repeat_loop:	ADD s3, 01
+					SR0 s2	
+					JUMP begin_loop
+					
+	display_leds:	LOAD s1, FF		;s1 = 8'b1111_1111
+		check:		COMPARE s3, 00 
+					JUMP Z, finished	;if count == 0, then we are finished 
+					
+					SL0 s1 
+					SUB s3, 01 
+					JUMP check
+				
+	finished:		ADD s0, 01
+					OUTPUT s1, HIGHER_LED_output_port	;output the LED pattern to the board 
+					FETCH s0, SEAN_preserve_s0           ;restore registers
+					FETCH s1, SEAN_preserve_s1
+					FETCH s2, SEAN_preserve_s2
+					FETCH s3, SEAN_preserve_s3
+                    
+                    RETURN
+     ;***************absolute value***********;
+           abs_val: LOAD s1, s0
+                    AND s1, 80                          ;80 = 1000 0000
+                    COMPARE s1, s0
+                    JUMP Z, convert_abs_val
+                    JUMP return_abs_val
+
+   convert_abs_val: XOR s0, FF
+                    ADD s0, 01
+                    JUMP return_abs_val
+
+    return_abs_val: RETURN
+        
+
+;*******************************DONEISR**********************************;
+         done_isr:  
+                    FETCH s0, AUDIO_iter
+                    ADD s0, 01
+                    STORE s0, AUDIO_iter
                     FETCH s0, ISR_preserve_s0           ;restore register
+                    FETCH s1, ISR_preserve_s1
+                    FETCH s2, ISR_preserve_s2
                     RETURNI ENABLE
+
+
                     ;
                     ;
                     ;**************************************************************************************
