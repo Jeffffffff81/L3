@@ -273,9 +273,9 @@ async_trap_and_reset_oneshot(
 //**************AUDIO/FLASH**************//
 MusicPlayer musicplayer(
 	.clk(CLK_50M),
-	.kybrd_forward(kybrd_forward),
-	.kybrd_pause(kybrd_pause),
-	.kybrd_reset(kybrd_reset),
+	.kybrd_forward(1'b1), //DEBUG
+	.kybrd_pause(1'b0), //DEBUG
+	.kybrd_reset(1'b0), //DEBUG
 	.startsamplenow(startsamplenow),
 	.flsh_address(flash_mem_address),
 	.flsh_waitrequest(flash_mem_waitrequest),
@@ -319,18 +319,13 @@ wire[7:0] audio_data = audio_data_16bit[15:8];
 
 
 //******************************8PICOBLAZE//******************************//
-wire [7:0] LCD_DATA;
 
 picoblaze_template
 #(
 .clk_freq_in_hz(50000000)
 ) 
 picoblaze_template_inst(
-                        .led(LED[7:0]),
-                      .lcd_d(LCD_DATA),
-                      .lcd_rs(1'b0),
-                      .lcd_rw(1'b0),
-                      .lcd_e(1'b0),
+                        .led(LED[7:0]),		
                         .clk(CLK_50M),
                 .input_data(audio_data)
                  );

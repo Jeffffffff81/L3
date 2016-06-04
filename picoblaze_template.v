@@ -4,13 +4,9 @@
 module 
 picoblaze_template
 #(
-parameter clk_freq_in_hz = 25000000
+parameter clk_freq_in_hz = 50000000
 ) (
 				output reg[7:0] led,
-            inout [7:0] lcd_d,
-            output reg lcd_rs,
-            output lcd_rw,
-            output reg lcd_e,
 				input clk,
 				input [7:0] input_data
 			     );
@@ -44,8 +40,6 @@ reg event_1hz;
 //--
 //--
 
-reg        lcd_rw_control;
-reg[7:0]   lcd_output_data;
 pacoblaze3 led_8seg_kcpsm
 (
                   .address(address),
@@ -148,35 +142,7 @@ end
         //LED is port 80 hex 
         if (write_strobe & port_id[7])  //clock enable 
           led <= out_port;
-       
-//        -- 8-bit LCD data output address 40 hex.
-        if (write_strobe & port_id[6])  //clock enable
-          lcd_output_data <= out_port;
-      
-//        -- LCD controls at address 20 hex.
-        if (write_strobe & port_id[5]) //clock enable
-	  begin
-             lcd_rs <= out_port[2];
-             lcd_rw_control <= out_port[1];
-             lcd_e <= out_port[0];
-        end
 
   end
-
-//  --
-//  ----------------------------------------------------------------------------------------------------------------------------------
-//  -- LCD interface  
-//  ----------------------------------------------------------------------------------------------------------------------------------
-//  --
-//  -- The LCD will be accessed using the 8-bit mode.  
-//  -- lcd_rw is '1' for read and '0' for write 
-//  --
-//  -- Control of read and write signal
-
-  assign lcd_rw = lcd_rw_control;
-
-//  -- use read/write control to enable output buffers.
-  assign lcd_d = lcd_rw_control ? 8'bZZZZZZZZ : lcd_output_data;
-
 
 endmodule
