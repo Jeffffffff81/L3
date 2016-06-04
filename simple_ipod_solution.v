@@ -123,9 +123,9 @@ output                      DRAM_WE_N;
 //=======================================================
 // Input and output declarations
 logic CLK_50M;
-logic  [7:0] LED;
+logic  [9:0] LED;
 assign CLK_50M =  CLOCK_50;
-assign LEDR[7:0] = LED[7:0];
+assign LEDR[9:0] = LED[9:0];
 
 //Character definitions
 
@@ -320,15 +320,11 @@ wire[7:0] audio_data = audio_data_16bit[15:8];
 
 //******************************8PICOBLAZE//******************************//
 
-picoblaze_template
-#(
-.clk_freq_in_hz(50000000)
-) 
-picoblaze_template_inst(
-                        .led(LED[7:0]),		
-                        .clk(CLK_50M),
-                .input_data(audio_data)
-                 );
+picoblaze_template #(.clk_freq_in_hz(50000000)) picoblaze_template_inst(
+	.led(LED[9:2]),		
+	.clk(CLK_50M),
+	.input_data(audio_data)
+);
 
 
 //======================================================================================

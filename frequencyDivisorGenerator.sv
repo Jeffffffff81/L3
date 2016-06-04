@@ -40,8 +40,9 @@ parameter min_divisor = 100;
 wire [31:0] next_speed_down, next_speed_up; 
 
 //next_speed_down and next_speed_up values
-assign next_speed_up = (frequency_divisor - 1) > min_divisor ? frequency_divisor - 1 : frequency_divisor;
-assign next_speed_down = (frequency_divisor + 1) < max_divisor ? frequency_divisor + 1 : frequency_divisor;   
+//DEBUG
+assign next_speed_up = (frequency_divisor - 100) > min_divisor ? frequency_divisor - 100 : frequency_divisor;
+assign next_speed_down = (frequency_divisor + 100) < max_divisor ? frequency_divisor + 100 : frequency_divisor;   
 									
 
 //register to control next frequency output 							

@@ -184,11 +184,8 @@
                     ;
                     ; Display welcome message for design
                     ;
-      main_program: 
-		        CALL delay_1s;
-			  JUMP main_program;
-
-			  ;
+      main_program: CALL delay_1s;
+		    JUMP main_program;
        		  
                     ;**************************************************************************************
                     ; Routines to display hexadecimal values on LCD display
