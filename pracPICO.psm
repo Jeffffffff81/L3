@@ -555,10 +555,8 @@ disp_line2:         LOAD s5, character_t
                     ; on the 8 LEDs.
                     ;
                ISR: STORE s0, ISR_preserve_s0           ;preserve register
-                    FETCH s0, LED_pattern               ;read current counter value
-                    ADD s0, 01                          ;increment counter
-                    STORE s0, LED_pattern               ;store new counter value
-                    OUTPUT s0, LED_port                 ;display counter value on LEDs
+                    INPUT s0, DATA_IN_PORT              ;read audio data
+                    OUTPUT s0, LED_port                 ;display audio data on LEDs
                     FETCH s0, ISR_preserve_s0           ;restore register
                     RETURNI ENABLE
                     ;
