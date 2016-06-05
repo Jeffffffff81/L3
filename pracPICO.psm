@@ -660,7 +660,7 @@ lower_overflow:
      ;***************absolute value***********;
            abs_val: LOAD s1, s0
                     AND s1, 80                          ;80 = 1000 0000
-                    COMPARE s1, s0
+                    COMPARE s1, 80
                     JUMP Z, convert_abs_val
                     JUMP return_abs_val
 
